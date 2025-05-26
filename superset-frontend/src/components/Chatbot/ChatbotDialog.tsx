@@ -61,6 +61,7 @@ const DialogHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   user-select: none;
+  cursor: pointer;
 
   &:hover {
     background-color: #177690;
@@ -124,13 +125,41 @@ const DialogContent = styled.div`
   }
 `;
 
-const Message = styled.div<{ isUser?: boolean }>`
+interface Message {
+  text: string;
+  isUser: boolean;
+  isClickable?: boolean;
+}
+
+interface ChatbotDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+const Message = styled.div<{ isUser?: boolean; isClickable?: boolean }>`
   max-width: 80%;
   padding: 8px 12px;
   border-radius: 8px;
   align-self: ${props => (props.isUser ? 'flex-end' : 'flex-start')};
   background-color: ${props => (props.isUser ? '#1985a0' : '#f0f2f5')};
   color: ${props => (props.isUser ? 'white' : 'inherit')};
+  cursor: ${props => (props.isClickable ? 'pointer' : 'default')};
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  &:hover {
+    ${props => props.isClickable && `
+      background-color: ${props.isUser ? '#1a7b93' : '#e6e8eb'};
+    `}
+  }
+
+  .message-icon {
+    display: flex;
+    align-items: center;
+    opacity: 0.7;
+    font-size: 14px;
+  }
 `;
 
 const DialogFooter = styled.div`
@@ -178,20 +207,13 @@ const DialogFooter = styled.div`
   }
 `;
 
-interface Message {
-  text: string;
-  isUser: boolean;
-}
-
-interface ChatbotDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
-
 export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = React.useState<Message[]>([
     { text: 'Hello!', isUser: false },
     { text: 'How may I help you today?', isUser: false },
+    { text: 'Here are a couple suggestions for you:', isUser: false },
+    { text: 'What is the aggregate risk picture for Kubernetes 1.24', isUser: false, isClickable: true },
+    { text: 'What vulnerabilities or CWEs are the most important to fix before the next release of Kubernetes?', isUser: false, isClickable: true },
   ]);
   const [input, setInput] = React.useState('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('overlay');
@@ -227,6 +249,12 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
     onClose();
   };
 
+  const handleMessageClick = (message: Message) => {
+    if (message.isClickable) {
+      setInput(message.text);
+    }
+  };
+
   const menuItems: MenuProps['items'] = [
     {
       key: 'overlay',
@@ -250,9 +278,9 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
 
   return (
     <DialogContainer isOpen={isOpen} mode={displayMode}>
-      <DialogHeader>
+      <DialogHeader onClick={onClose}>
         <h3>Chatbot</h3>
-        <div className="header-actions">
+        <div className="header-actions" onClick={e => e.stopPropagation()}>
           <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
             <button onClick={e => e.stopPropagation()} aria-label="Menu">
               <Icons.EllipsisOutlined />
@@ -265,8 +293,18 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
       </DialogHeader>
       <DialogContent ref={contentRef}>
         {messages.map((message, index) => (
-          <Message key={index} isUser={message.isUser}>
-            {message.text}
+          <Message 
+            key={index} 
+            isUser={message.isUser} 
+            isClickable={message.isClickable}
+            onClick={() => handleMessageClick(message)}
+          >
+            <span>{message.text}</span>
+            {message.isClickable && (
+              <span className="message-icon">
+                <Icons.RightOutlined />
+              </span>
+            )}
           </Message>
         ))}
       </DialogContent>
