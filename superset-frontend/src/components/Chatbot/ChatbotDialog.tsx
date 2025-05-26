@@ -20,13 +20,14 @@ const DialogContainer = styled.div<DialogContainerProps>`
   z-index: 1000;
   overflow: hidden;
   transition: all 0.3s ease;
+  transform-origin: bottom right;
 
   ${({ mode }) => {
     switch (mode) {
       case 'fullscreen':
         return css`
-          top: 0;
-          left: 0;
+          bottom: 0;
+          right: 0;
           width: 100%;
           height: 100vh;
           border-radius: 0;
