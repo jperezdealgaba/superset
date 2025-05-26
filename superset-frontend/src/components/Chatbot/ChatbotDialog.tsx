@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { styled, css } from '@superset-ui/core';
 import { Icons } from 'src/components/Icons';
 import { Input, Dropdown } from 'antd-v5';
 import type { MenuProps } from 'antd-v5';
+import { Resizable } from 're-resizable';
 
 type DisplayMode = 'overlay' | 'dock' | 'fullscreen';
 
@@ -10,6 +11,22 @@ interface DialogContainerProps {
   isOpen: boolean;
   mode: DisplayMode;
 }
+
+const ResizableWrapper = styled.div`
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  z-index: 1000;
+
+  .resizable-chatbot {
+    background: white;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 8px;
+  }
+`;
 
 const DialogContainer = styled.div<DialogContainerProps>`
   position: fixed;
@@ -43,11 +60,7 @@ const DialogContainer = styled.div<DialogContainerProps>`
       case 'overlay':
       default:
         return css`
-          bottom: 80px;
-          right: 20px;
-          width: 350px;
-          height: 500px;
-          border-radius: 8px;
+          display: none;
         `;
     }
   }}
@@ -217,17 +230,8 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
   ]);
   const [input, setInput] = React.useState('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('overlay');
+  const [size, setSize] = useState({ width: 350, height: 500 });
   const contentRef = React.useRef<HTMLDivElement>(null);
-
-  const scrollToBottom = () => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  };
-
-  React.useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
 
   const handleSend = () => {
     if (input.trim()) {
@@ -276,7 +280,80 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
     },
   ];
 
-  return (
+  return displayMode === 'overlay' ? (
+    <ResizableWrapper style={{ display: isOpen ? 'block' : 'none' }}>
+      <Resizable
+        size={size}
+        minWidth={300}
+        minHeight={400}
+        maxWidth={800}
+        maxHeight={800}
+        enable={{
+          top: true,
+          right: false,
+          bottom: true,
+          left: true,
+          topRight: false,
+          bottomRight: false,
+          bottomLeft: true,
+          topLeft: true,
+        }}
+        onResizeStop={(e, direction, ref, d) => {
+          setSize({
+            width: size.width + d.width,
+            height: size.height + d.height,
+          });
+        }}
+        className="resizable-chatbot"
+      >
+        <DialogHeader onClick={onClose}>
+          <h3>Chatbot</h3>
+          <div className="header-actions" onClick={e => e.stopPropagation()}>
+            <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+              <button onClick={e => e.stopPropagation()} aria-label="Menu">
+                <Icons.EllipsisOutlined />
+              </button>
+            </Dropdown>
+            <button onClick={handleCloseClick} aria-label="Close chat">
+              <Icons.CloseOutlined />
+            </button>
+          </div>
+        </DialogHeader>
+        <DialogContent ref={contentRef}>
+          {messages.map((message, index) => (
+            <Message 
+              key={index} 
+              isUser={message.isUser} 
+              isClickable={message.isClickable}
+              onClick={() => handleMessageClick(message)}
+            >
+              <span>{message.text}</span>
+              {message.isClickable && (
+                <span className="message-icon">
+                  <Icons.RightOutlined />
+                </span>
+              )}
+            </Message>
+          ))}
+        </DialogContent>
+        <DialogFooter>
+          <div className="input-container">
+            <Input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Type a message..."
+              autoComplete="off"
+              bordered={false}
+            />
+            <button onClick={handleSend} aria-label="Send message">
+              <Icons.RightOutlined />
+            </button>
+          </div>
+        </DialogFooter>
+      </Resizable>
+    </ResizableWrapper>
+  ) : (
     <DialogContainer isOpen={isOpen} mode={displayMode}>
       <DialogHeader onClick={onClose}>
         <h3>Chatbot</h3>
