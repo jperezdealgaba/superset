@@ -32,10 +32,11 @@ const FloatingButton = styled.button`
 
 interface ChatbotButtonProps {
   onClick: () => void;
+  isOpen: boolean;
 }
 
-export const ChatbotButton: React.FC<ChatbotButtonProps> = ({ onClick }) => (
-  <FloatingButton onClick={onClick} aria-label="Open chat">
-    <Icons.CommentOutlined />
+export const ChatbotButton: React.FC<ChatbotButtonProps> = ({ onClick, isOpen }) => (
+  <FloatingButton onClick={onClick} aria-label={isOpen ? 'Close chat' : 'Open chat'}>
+    {!isOpen ? <Icons.CommentOutlined /> : <Icons.DownOutlined />}
   </FloatingButton>
 ); 

@@ -11,7 +11,7 @@ export const Chatbot: React.FC = () => {
 
   return (
     <>
-      <ChatbotButton onClick={handleToggle} />
+      <ChatbotButton onClick={handleToggle} isOpen={isOpen} />
       <ChatbotDialog isOpen={isOpen} onClose={handleToggle} />
     </>
   );

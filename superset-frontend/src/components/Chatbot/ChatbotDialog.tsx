@@ -1,21 +1,41 @@
-import React from 'react';
-import { styled } from '@superset-ui/core';
+import React, { useState } from 'react';
+import { styled, css } from '@superset-ui/core';
 import { Icons } from 'src/components/Icons';
-import { Input } from 'antd-v5';
+import { Input, Dropdown } from 'antd-v5';
+import type { MenuProps } from 'antd-v5';
 
-const DialogContainer = styled.div<{ isOpen: boolean }>`
+const getDisplayModeStyles = (mode: DisplayMode) => {
+  switch (mode) {
+    case 'fullscreen':
+      return css`
+        bottom: 0;
+        right: 0;
+        width: 100%;
+        height: 100vh;
+        border-radius: 0;
+      `;
+    case 'overlay':
+    default:
+      return css`
+        bottom: 80px;
+        right: 20px;
+        width: 350px;
+        height: 500px;
+        border-radius: 8px;
+      `;
+  }
+};
+
+const DialogContainer = styled.div<{ isOpen: boolean; mode: DisplayMode }>`
   position: fixed;
-  bottom: 80px;
-  right: 20px;
-  width: 350px;
-  height: 500px;
   background: white;
-  border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: ${props => (props.isOpen ? 'flex' : 'none')};
   flex-direction: column;
   z-index: 1000;
   overflow: hidden;
+  transition: all 0.3s ease;
+  ${props => getDisplayModeStyles(props.mode)}
 `;
 
 const DialogHeader = styled.div`
@@ -25,7 +45,6 @@ const DialogHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  cursor: pointer;
   user-select: none;
 
   &:hover {
@@ -36,6 +55,12 @@ const DialogHeader = styled.div`
     margin: 0;
     font-size: 16px;
     font-weight: 500;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
 
   button {
@@ -140,12 +165,15 @@ interface ChatbotDialogProps {
   onClose: () => void;
 }
 
+type DisplayMode = 'overlay' | 'dock' | 'fullscreen';
+
 export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = React.useState<Message[]>([
     { text: 'Hello!', isUser: false },
     { text: 'How may I help you today?', isUser: false },
   ]);
   const [input, setInput] = React.useState('');
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('overlay');
   const contentRef = React.useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -173,18 +201,41 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
     }
   };
 
-  const handleCloseClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onClose();
-  };
+  const menuItems: MenuProps['items'] = [
+    {
+      key: 'overlay',
+      label: 'Overlay',
+      icon: displayMode === 'overlay' ? <Icons.CheckOutlined /> : null,
+      onClick: () => setDisplayMode('overlay'),
+    },
+    {
+      key: 'dock',
+      label: 'Dock to window',
+      icon: displayMode === 'dock' ? <Icons.CheckOutlined /> : null,
+      onClick: () => setDisplayMode('dock'),
+    },
+    {
+      key: 'fullscreen',
+      label: 'Fullscreen',
+      icon: displayMode === 'fullscreen' ? <Icons.CheckOutlined /> : null,
+      onClick: () => setDisplayMode('fullscreen'),
+    },
+  ];
 
   return (
-    <DialogContainer isOpen={isOpen}>
-      <DialogHeader onClick={onClose}>
+    <DialogContainer isOpen={isOpen} mode={displayMode}>
+      <DialogHeader>
         <h3>Chatbot</h3>
-        <button onClick={handleCloseClick} aria-label="Close chat">
-          <Icons.CloseOutlined />
-        </button>
+        <div className="header-actions">
+          <Dropdown menu={{ items: menuItems }} trigger={['click']} placement="bottomRight">
+            <button onClick={e => e.stopPropagation()} aria-label="Menu">
+              <Icons.EllipsisOutlined />
+            </button>
+          </Dropdown>
+          <button onClick={onClose} aria-label="Close chat">
+            <Icons.CloseOutlined />
+          </button>
+        </div>
       </DialogHeader>
       <DialogContent ref={contentRef}>
         {messages.map((message, index) => (
