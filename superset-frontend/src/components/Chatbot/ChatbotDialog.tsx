@@ -61,6 +61,19 @@ const DialogContent = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+  }
 `;
 
 const Message = styled.div<{ isUser?: boolean }>`
@@ -75,14 +88,25 @@ const Message = styled.div<{ isUser?: boolean }>`
 const DialogFooter = styled.div`
   padding: 16px;
   border-top: 1px solid #f0f2f5;
+  background: white;
 
-  .ant-input-group {
+  .input-container {
     display: flex;
+    align-items: center;
     gap: 8px;
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+    padding: 4px 11px;
   }
 
   .ant-input {
-    border-radius: 20px;
+    border: none;
+    padding: 0;
+    box-shadow: none;
+    
+    &:focus {
+      box-shadow: none;
+    }
   }
 
   button {
@@ -90,13 +114,26 @@ const DialogFooter = styled.div`
     background: none;
     color: #1985a0;
     cursor: pointer;
-    padding: 0 8px;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
       opacity: 0.8;
     }
+
+    svg {
+      width: 16px;
+      height: 16px;
+    }
   }
 `;
+
+interface Message {
+  text: string;
+  isUser: boolean;
+}
 
 interface ChatbotDialogProps {
   isOpen: boolean;
@@ -104,15 +141,27 @@ interface ChatbotDialogProps {
 }
 
 export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose }) => {
-  const [messages] = React.useState([
+  const [messages, setMessages] = React.useState<Message[]>([
     { text: 'Hello!', isUser: false },
     { text: 'How may I help you today?', isUser: false },
   ]);
   const [input, setInput] = React.useState('');
+  const contentRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  };
+
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = () => {
     if (input.trim()) {
-      // Here you would typically handle sending the message
+      const newMessage: Message = { text: input.trim(), isUser: true };
+      setMessages(prev => [...prev, newMessage]);
       setInput('');
     }
   };
@@ -137,7 +186,7 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
           <Icons.CloseOutlined />
         </button>
       </DialogHeader>
-      <DialogContent>
+      <DialogContent ref={contentRef}>
         {messages.map((message, index) => (
           <Message key={index} isUser={message.isUser}>
             {message.text}
@@ -145,18 +194,19 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
         ))}
       </DialogContent>
       <DialogFooter>
-        <Input.Group compact>
+        <div className="input-container">
           <Input
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
             autoComplete="off"
+            bordered={false}
           />
           <button onClick={handleSend} aria-label="Send message">
             <Icons.RightOutlined />
           </button>
-        </Input.Group>
+        </div>
       </DialogFooter>
     </DialogContainer>
   );
