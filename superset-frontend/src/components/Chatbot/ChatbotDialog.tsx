@@ -4,29 +4,14 @@ import { Icons } from 'src/components/Icons';
 import { Input, Dropdown } from 'antd-v5';
 import type { MenuProps } from 'antd-v5';
 
-const getDisplayModeStyles = (mode: DisplayMode) => {
-  switch (mode) {
-    case 'fullscreen':
-      return css`
-        bottom: 0;
-        right: 0;
-        width: 100%;
-        height: 100vh;
-        border-radius: 0;
-      `;
-    case 'overlay':
-    default:
-      return css`
-        bottom: 80px;
-        right: 20px;
-        width: 350px;
-        height: 500px;
-        border-radius: 8px;
-      `;
-  }
-};
+type DisplayMode = 'overlay' | 'dock' | 'fullscreen';
 
-const DialogContainer = styled.div<{ isOpen: boolean; mode: DisplayMode }>`
+interface DialogContainerProps {
+  isOpen: boolean;
+  mode: DisplayMode;
+}
+
+const DialogContainer = styled.div<DialogContainerProps>`
   position: fixed;
   background: white;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -35,7 +20,36 @@ const DialogContainer = styled.div<{ isOpen: boolean; mode: DisplayMode }>`
   z-index: 1000;
   overflow: hidden;
   transition: all 0.3s ease;
-  ${props => getDisplayModeStyles(props.mode)}
+
+  ${({ mode }) => {
+    switch (mode) {
+      case 'fullscreen':
+        return css`
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100vh;
+          border-radius: 0;
+        `;
+      case 'dock':
+        return css`
+          top: 0;
+          right: 0;
+          width: 25%;
+          height: 100vh;
+          border-radius: 0;
+        `;
+      case 'overlay':
+      default:
+        return css`
+          bottom: 80px;
+          right: 20px;
+          width: 350px;
+          height: 500px;
+          border-radius: 8px;
+        `;
+    }
+  }}
 `;
 
 const DialogHeader = styled.div`
@@ -61,6 +75,10 @@ const DialogHeader = styled.div`
     display: flex;
     align-items: center;
     gap: 8px;
+
+    .anticon {
+      color: white;
+    }
   }
 
   button {
@@ -75,6 +93,10 @@ const DialogHeader = styled.div`
 
     &:hover {
       opacity: 0.8;
+    }
+
+    svg {
+      color: white;
     }
   }
 `;
@@ -165,8 +187,6 @@ interface ChatbotDialogProps {
   onClose: () => void;
 }
 
-type DisplayMode = 'overlay' | 'dock' | 'fullscreen';
-
 export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose }) => {
   const [messages, setMessages] = React.useState<Message[]>([
     { text: 'Hello!', isUser: false },
@@ -201,6 +221,11 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
     }
   };
 
+  const handleCloseClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onClose();
+  };
+
   const menuItems: MenuProps['items'] = [
     {
       key: 'overlay',
@@ -232,7 +257,7 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
               <Icons.EllipsisOutlined />
             </button>
           </Dropdown>
-          <button onClick={onClose} aria-label="Close chat">
+          <button onClick={handleCloseClick} aria-label="Close chat">
             <Icons.CloseOutlined />
           </button>
         </div>
