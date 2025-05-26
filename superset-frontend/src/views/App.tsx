@@ -43,6 +43,7 @@ import { logEvent } from 'src/logger/actions';
 import { store } from 'src/views/store';
 import { RootContextProviders } from './RootContextProviders';
 import { ScrollToTop } from './ScrollToTop';
+import { Chatbot } from 'src/components/Chatbot';
 
 setupApp();
 setupPlugins();
@@ -105,6 +106,7 @@ const App = () => (
         ))}
       </Switch>
       <ToastContainer />
+      <Chatbot />
     </RootContextProviders>
   </Router>
 );
