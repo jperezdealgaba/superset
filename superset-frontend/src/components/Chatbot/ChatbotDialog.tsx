@@ -3,6 +3,7 @@ import { styled, css } from '@superset-ui/core';
 import { Icons } from 'src/components/Icons';
 import { Input, Dropdown } from 'antd-v5';
 import type { MenuProps } from 'antd-v5';
+import type { InputRef } from 'antd-v5/lib/input';
 import { Resizable } from 're-resizable';
 
 type DisplayMode = 'overlay' | 'dock' | 'fullscreen';
@@ -232,6 +233,18 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
   const [displayMode, setDisplayMode] = useState<DisplayMode>('overlay');
   const [size, setSize] = useState({ width: 350, height: 500 });
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const inputRef = React.useRef<InputRef>(null);
+
+  const scrollToBottom = () => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = contentRef.current.scrollHeight;
+    }
+  };
+
+  // Scroll to bottom when messages change
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
 
   const handleSend = () => {
     if (input.trim()) {
@@ -256,6 +269,7 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
   const handleMessageClick = (message: Message) => {
     if (message.isClickable) {
       setInput(message.text);
+      inputRef.current?.focus();
     }
   };
 
@@ -339,6 +353,7 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
         <DialogFooter>
           <div className="input-container">
             <Input
+              ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
@@ -388,6 +403,7 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
       <DialogFooter>
         <div className="input-container">
           <Input
+            ref={inputRef}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
