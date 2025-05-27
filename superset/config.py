@@ -1642,7 +1642,6 @@ TALISMAN_CONFIG = {
             "data:",
             "https://apachesuperset.gateway.scarf.sh",
             "https://static.scarf.sh/",
-            # "https://cdn.brandfolder.io", # Uncomment when SLACK_ENABLE_AVATARS is True  # noqa: E501
             "ows.terrestris.de",
         ],
         "worker-src": ["'self'", "blob:"],
@@ -1650,6 +1649,7 @@ TALISMAN_CONFIG = {
             "'self'",
             "https://api.mapbox.com",
             "https://events.mapbox.com",
+            "http://localhost:8502",  # Allow connection to chatbot service
         ],
         "object-src": "'none'",
         "style-src": [
@@ -1681,6 +1681,7 @@ TALISMAN_DEV_CONFIG = {
             "'self'",
             "https://api.mapbox.com",
             "https://events.mapbox.com",
+            "http://localhost:8502",  # Allow connection to chatbot service
         ],
         "object-src": "'none'",
         "style-src": [

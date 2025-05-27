@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { styled, css } from '@superset-ui/core';
 import { Icons } from 'src/components/Icons';
 import { Input, Dropdown } from 'antd-v5';
 import type { MenuProps } from 'antd-v5';
 import type { InputRef } from 'antd-v5/lib/input';
 import { Resizable } from 're-resizable';
+
+// Constants
+const CHATBOT_SERVICE_URL = 'http://localhost:8502';
 
 type DisplayMode = 'overlay' | 'dock' | 'fullscreen';
 
@@ -143,6 +146,7 @@ interface Message {
   text: string;
   isUser: boolean;
   isClickable?: boolean;
+  type?: 'human' | 'ai' | 'tool';
 }
 
 interface ChatbotDialogProps {
@@ -222,18 +226,20 @@ const DialogFooter = styled.div`
 `;
 
 export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose }) => {
-  const [messages, setMessages] = React.useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>([
     { text: 'Hello!', isUser: false },
     { text: 'How may I help you today?', isUser: false },
     { text: 'Here are a couple suggestions for you:', isUser: false },
     { text: 'What is the aggregate risk picture for Kubernetes 1.24', isUser: false, isClickable: true },
     { text: 'What vulnerabilities or CWEs are the most important to fix before the next release of Kubernetes?', isUser: false, isClickable: true },
   ]);
-  const [input, setInput] = React.useState('');
+  const [input, setInput] = useState('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('overlay');
   const [size, setSize] = useState({ width: 350, height: 500 });
-  const contentRef = React.useRef<HTMLDivElement>(null);
-  const inputRef = React.useRef<InputRef>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<InputRef>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
 
   const scrollToBottom = () => {
     if (contentRef.current) {
@@ -241,16 +247,128 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
     }
   };
 
-  // Scroll to bottom when messages change
-  React.useEffect(() => {
+  useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const handleSend = () => {
-    if (input.trim()) {
-      const newMessage: Message = { text: input.trim(), isUser: true };
-      setMessages(prev => [...prev, newMessage]);
-      setInput('');
+  useEffect(() => {
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+    };
+  }, []);
+
+  const handleSendMessage = async (message: string) => {
+    try {
+      const response = await fetch(`${CHATBOT_SERVICE_URL}/stream`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message,
+          stream_tokens: true,
+        }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('No reader available');
+      }
+
+      let currentMessage = '';
+      let hasAddedMessage = false;
+
+      // Process the stream
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          setIsStreaming(false); // Reset streaming state when done
+          break;
+        }
+
+        // Convert the chunk to text
+        const chunk = new TextDecoder().decode(value);
+        const lines = chunk.split('\n');
+
+        // Process each line
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6); // Remove 'data: ' prefix
+            if (data === '[DONE]') {
+              setIsStreaming(false); // Reset streaming state when [DONE] is received
+              break;
+            }
+            try {
+              const parsedData = JSON.parse(data);
+              if (parsedData.type === 'token') {
+                // Handle token streaming
+                currentMessage += parsedData.content;
+                setMessages(prev => {
+                  const newMessages = [...prev];
+                  if (!hasAddedMessage) {
+                    newMessages.push({
+                      text: currentMessage,
+                      isUser: false,
+                    });
+                    hasAddedMessage = true;
+                  } else {
+                    newMessages[newMessages.length - 1].text = currentMessage;
+                  }
+                  return newMessages;
+                });
+              }
+              // We'll ignore 'message' type events when streaming tokens
+              // to avoid duplicate messages
+            } catch (e) {
+              console.error('Error parsing SSE data:', e);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setMessages(prev => [
+        ...prev,
+        {
+          text: 'Sorry, there was an error processing your request.',
+          isUser: false,
+        },
+      ]);
+      setIsStreaming(false); // Reset streaming state on error
+    }
+  };
+
+  const handleSend = async () => {
+    if (!input.trim() || isStreaming) return;
+
+    const userMessage = input.trim();
+    setInput('');
+    setIsStreaming(true);
+
+    // Add user message
+    setMessages(prev => [...prev, { text: userMessage, isUser: true }]);
+
+    // Close any existing SSE connection
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    try {
+      // Create new SSE connection
+      await handleSendMessage(userMessage);
+    } catch (error) {
+      setMessages(prev => [
+        ...prev,
+        { text: 'Failed to send message. Please try again.', isUser: false },
+      ]);
+      setIsStreaming(false);
     }
   };
 
@@ -263,6 +381,9 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
 
   const handleCloseClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
     onClose();
   };
 
@@ -360,8 +481,13 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
               placeholder="Type a message..."
               autoComplete="off"
               bordered={false}
+              disabled={isStreaming}
             />
-            <button onClick={handleSend} aria-label="Send message">
+            <button 
+              onClick={handleSend} 
+              aria-label="Send message"
+              disabled={isStreaming}
+            >
               <Icons.RightOutlined />
             </button>
           </div>
@@ -410,8 +536,13 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
             placeholder="Type a message..."
             autoComplete="off"
             bordered={false}
+            disabled={isStreaming}
           />
-          <button onClick={handleSend} aria-label="Send message">
+          <button 
+            onClick={handleSend} 
+            aria-label="Send message"
+            disabled={isStreaming}
+          >
             <Icons.RightOutlined />
           </button>
         </div>
