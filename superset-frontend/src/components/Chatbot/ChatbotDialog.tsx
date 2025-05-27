@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { styled, css } from '@superset-ui/core';
+import { styled, css, keyframes } from '@superset-ui/core';
 import { Icons } from 'src/components/Icons';
 import { Input, Dropdown } from 'antd-v5';
 import type { MenuProps } from 'antd-v5';
@@ -180,6 +180,25 @@ const Message = styled.div<{ isUser?: boolean; isClickable?: boolean }>`
   }
 `;
 
+const loadingDots = keyframes`
+  0%, 20% {
+    content: ".";
+  }
+  40% {
+    content: "..";
+  }
+  60%, 100% {
+    content: "...";
+  }
+`;
+
+const LoadingMessage = styled(Message)`
+  &::after {
+    content: "";
+    animation: ${loadingDots} 1.5s infinite;
+  }
+`;
+
 const DialogFooter = styled.div`
   padding: 16px;
   border-top: 1px solid #f0f2f5;
@@ -308,6 +327,11 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
             try {
               const parsedData = JSON.parse(data);
               if (parsedData.type === 'token') {
+                // Remove the loading state on first token
+                if (!hasAddedMessage) {
+                  setIsStreaming(false);
+                }
+                
                 // Handle token streaming
                 currentMessage += parsedData.content;
                 setMessages(prev => {
@@ -470,6 +494,11 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
               )}
             </Message>
           ))}
+          {isStreaming && (
+            <LoadingMessage isUser={false}>
+              <span>Thinking</span>
+            </LoadingMessage>
+          )}
         </DialogContent>
         <DialogFooter>
           <div className="input-container">
@@ -525,6 +554,11 @@ export const ChatbotDialog: React.FC<ChatbotDialogProps> = ({ isOpen, onClose })
             )}
           </Message>
         ))}
+        {isStreaming && (
+          <LoadingMessage isUser={false}>
+            <span>Thinking</span>
+          </LoadingMessage>
+        )}
       </DialogContent>
       <DialogFooter>
         <div className="input-container">
